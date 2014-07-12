@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2009 Electronic Arts, Inc.  All rights reserved.
+Copyright (C) 2002-2013 Electronic Arts, Inc.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -26,31 +26,22 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*-----------------------------------------------------------------------------
- * eabase.h
- *
- * Copyright (c) 2002 - 2005 Electronic Arts Inc. All rights reserved.
- * Maintained by Paul Pedriana, Maxis
- *---------------------------------------------------------------------------*/
-
 
 #ifndef INCLUDED_eabase_H
 #define INCLUDED_eabase_H
 
 
 // Identify the compiler and declare the EA_COMPILER_xxxx defines
-#ifndef INCLUDED_eacompiler_H
-    #include "EABase/config/eacompiler.h"
-#endif
+#include <EABase/config/eacompiler.h>
 
 // Identify traits which this compiler supports, or does not support
-#ifndef INCLUDED_eacompilertraits_H
-    #include "EABase/config/eacompilertraits.h"
-#endif
+#include <EABase/config/eacompilertraits.h>
 
 // Identify the platform and declare the EA_xxxx defines
-#ifndef INCLUDED_eaplatform_H
-    #include "EABase/config/eaplatform.h"
+#include <EABase/config/eaplatform.h>
+
+#if defined(EA_PRAGMA_ONCE_SUPPORTED)
+    #pragma once // Some compilers (e.g. VC++) benefit significantly from using this. We've measured 3-4% build speed improvements in apps as a result.
 #endif
 
 
@@ -77,8 +68,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef EABASE_VERSION
-    #define EABASE_VERSION   "2.00.22"
-    #define EABASE_VERSION_N  20022
+    #define EABASE_VERSION   "2.00.35"
+    #define EABASE_VERSION_N  20035
 #endif
 
 
@@ -88,8 +79,15 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // not standards-compliant in this respect, so we need an additional include.
 // The case is similar with wchar_t under C++.
 
-#if defined(EA_COMPILER_GNUC) || defined(EA_COMPILER_MSVC) || defined(EA_WCHAR_T_NON_NATIVE)
+#if defined(EA_COMPILER_GNUC) || defined(EA_COMPILER_MSVC) || defined(EA_WCHAR_T_NON_NATIVE) || defined(CS_UNDEFINED_STRING) || defined(EA_PLATFORM_KETTLE)
+    #if defined(EA_COMPILER_MSVC)
+        #pragma warning(push, 0)
+        #pragma warning(disable: 4265 4365 4836 4574)
+    #endif
     #include <stddef.h>
+    #if defined(EA_COMPILER_MSVC)
+        #pragma warning(pop)
+    #endif
 #endif
 
 
@@ -100,13 +98,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // thing without having to resort to non-portable pragmas. It is possible
 // that the decision to use pragma once here is ill-advised, perhaps because
 // some compilers masquerade as MSVC but don't implement all features.
-#if defined(EA_COMPILER_MSVC) || defined(CS_UNDEFINED_STRING)
+#if defined(EA_PRAGMA_ONCE_SUPPORTED)
     #pragma once
 #endif
 
 
 // ------------------------------------------------------------------------
-// By default, GCC on certain platforms defines NULL as ((void*)0), which is the
+// By default, GCC on PlayStation2 defines NULL as ((void*)0), which is the
 // C definition. This causes all sort of problems for C++ code, so it is
 // worked around by undefining NULL.
 
@@ -133,13 +131,16 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // inttypes.h or stddef.h. Determining if they are predefined can be
 // tricky, so we expect some problems on non-standard compilers
 
+//#if (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
+//    #error "<inttypes.h> was #included before eabase.h, but without __STDC_FORMAT_MACROS #defined. You must #include eabase.h or an equivalent before #including C99 headers, or you must define __STDC_FORMAT_MACRO before #including system headrs."
+//#endif
+
 // ------------------------------------------------------------------------
 // We need to test this after we potentially include stddef.h, otherwise we
 // would have put this into the compilertraits header.
 #if !defined(EA_COMPILER_HAS_INTTYPES) && (!defined(_MSC_VER) || (_MSC_VER > 1500)) && (defined(EA_COMPILER_IS_C99) || defined(INT8_MIN) || defined(EA_COMPILER_HAS_C99_TYPES) || defined(_SN_STDINT_H))
     #define EA_COMPILER_HAS_INTTYPES
 #endif
-
 
 #ifdef EA_COMPILER_HAS_INTTYPES // If the compiler supports inttypes...
     // ------------------------------------------------------------------------
@@ -154,10 +155,20 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #ifndef __STDC_FORMAT_MACROS
        #define __STDC_FORMAT_MACROS
     #endif
+    // The GCC PSP compiler defines standard int types (e.g. uint32_t) but not PRId8, etc.
+    // MSVC doesn't include an inttypes.h header.
+    #if !defined(CS_UNDEFINED_STRING) && !defined(EA_COMPILER_MSVC)
         #include <inttypes.h> // PRId8, SCNd8, etc.
+    #endif
+    #if defined(_MSC_VER)
+        #pragma warning(push, 0)
+    #endif
     #include <stdint.h>   // int32_t, INT64_C, UINT8_MAX, etc.
     #include <math.h>     // float_t, double_t, etc.
     #include <float.h>    // FLT_EVAL_METHOD.
+    #if defined(_MSC_VER)
+        #pragma warning(pop)
+    #endif
 
     #if !defined(FLT_EVAL_METHOD) && (defined(__FLT_EVAL_METHOD__) || defined(_FEVAL)) // GCC 3.x defines __FLT_EVAL_METHOD__ instead of the C99 standard FLT_EVAL_METHOD.
         #ifdef __FLT_EVAL_METHOD__
@@ -166,6 +177,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             #define FLT_EVAL_METHOD _FEVAL
         #endif
     #endif
+
+    // The QNX gcc-based toolchain for the Playbook doesn't define std::uint32_t to be the same type as unsigned long int, for some obscure reason.
+    // So, this causes ambigous overload problems when trying to initialize RWMatch types using the UINT32_C macro, which just appends UL to the integer.
+    // Wrapping this in an explicit typecast solves the problem without introducing any noticable side-effects.
 
     // MinGW GCC (up to at least v4.3.0-20080502) mistakenly neglects to define float_t and double_t.
     // This appears to be an acknowledged bug as of March 2008 and is scheduled to be fixed.
@@ -235,7 +250,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     // According to the C98/99 standard, FLT_EVAL_METHOD defines control the 
     // width used for floating point _t types.
-    #if   defined(FLT_EVAL_METHOD)
+    #if   defined(__ghs)
+        // The Green Hills compiler always defines float_t, double_t, and __FLT_EVAL_METHOD.
+        #include <float.h>
+    #elif defined(FLT_EVAL_METHOD)
         #if (FLT_EVAL_METHOD == 0)
             typedef float           float_t;
             typedef double          double_t;
@@ -246,19 +264,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             typedef long double     float_t;
             typedef long double     double_t;
         #endif
-    #else
-        #define FLT_EVAL_METHOD 0
-        typedef float               float_t;
-        typedef double              double_t;
     #endif
+    
+    
+   #if   defined(EA_COMPILER_MSVC) || defined(EA_COMPILER_BORLAND)
+       typedef signed __int64      int64_t;
+       typedef unsigned __int64    uint64_t;
 
-       #if defined(EA_COMPILER_MSVC) || defined(EA_COMPILER_BORLAND)  || defined(EA_COMPILER_INTEL)
-           typedef signed __int64      int64_t;
-           typedef unsigned __int64    uint64_t;
-       #else // GCC, Metrowerks, etc.
-           typedef long long           int64_t;
-           typedef unsigned long long  uint64_t;
-       #endif
+   #else
+       typedef signed long long    int64_t;
+       typedef unsigned long long  uint64_t;
+   #endif
 
 
     // ------------------------------------------------------------------------
@@ -297,7 +313,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             #ifndef UINT64_C
                 #define UINT64_C(x)  x##ui64
             #endif
-
         #elif !defined(__STDC_CONSTANT_MACROS) // __STDC_CONSTANT_MACROS is defined by GCC 3 and later when INT8_C(), etc. are defined.
             #define   INT8_C(x)    int8_t(x)   // For the majority of compilers and platforms, long is 32 bits and long long is 64 bits.
             #define  UINT8_C(x)   uint8_t(x)
@@ -358,6 +373,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #endif
     #endif
 
+#endif
+
+#ifndef FLT_EVAL_METHOD
+    #define FLT_EVAL_METHOD 0
+    typedef float               float_t;
+    typedef double              double_t;
+#endif
+
+#if defined(EA_COMPILER_HAS_INTTYPES) && !defined(EA_COMPILER_MSVC)
+    #define EA_COMPILER_HAS_C99_FORMAT_MACROS 
+#endif
+
+#ifndef EA_COMPILER_HAS_C99_FORMAT_MACROS 
     // ------------------------------------------------------------------------
     // sized printf and scanf format specifiers
     // See the C99 standard, section 7.8.1 -- Macros for format specifiers.
@@ -488,7 +516,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #define SCNuPTR       SCNu64
         #define SCNxPTR       SCNx64
     #endif
-
 #endif
 
 
@@ -544,10 +571,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         // At this time, all supported compilers have int64_t as the max
         // integer type. Some compilers support a 128 bit inteter type,
-        // but in those cases it is not a true int128_t but rather a 
-        // crippled data type.
-        typedef int64_t            intmax_t;
-        typedef uint64_t           uintmax_t;
+        // but in some cases it is not a true int128_t but rather a 
+        // crippled data type. Also, it turns out that Unix 64 bit ABIs 
+        // require that intmax_t be int64_t and nothing larger. So we 
+        // play it safe here and set intmax_t to int64_t, even though 
+        // an int128_t type may exist.
+
+        typedef int64_t  intmax_t;
+        typedef uint64_t uintmax_t;
     #endif
 #endif
 
@@ -555,9 +586,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // ------------------------------------------------------------------------
 // ssize_t
 // signed equivalent to size_t.
-// This is defined by GCC but not by other compilers.
+// This is defined by GCC (except the QNX implementation of GCC) but not by other compilers.
 //
-#if !defined(__GNUC__)
+#if   !defined(__GNUC__) || defined(__ghs)
     // As of this writing, all non-GCC compilers significant to us implement 
     // uintptr_t the same as size_t. However, this isn't guaranteed to be 
     // so for all compilers, as size_t may be based on int, long, or long long.
@@ -566,14 +597,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #else
         typedef long ssize_t;
     #endif
-#elif defined(CS_UNDEFINED_STRING) || defined(EA_PLATFORM_MINGW) || defined(CS_UNDEFINED_STRING) || defined(_BSD_SIZE_T_) // _BSD_SIZE_T_ indicates that Unix-like headers are present, even though it may not be a true Unix platform.
+#else
     #include <sys/types.h>
 #endif
 
 
 // ------------------------------------------------------------------------
-// Character types
+// off_t
+//
+#if defined(__ghs)  // Green Hills compiler.
+    typedef long off_t; // off_t is not publicly defined with this compiler/platform combination.
+#endif
 
+
+// ------------------------------------------------------------------------
+// Character types
+//
 #if defined(EA_COMPILER_MSVC) || defined(EA_COMPILER_BORLAND)
     #if defined(EA_WCHAR_T_NON_NATIVE)
        // In this case, wchar_t is not defined unless we include 
@@ -614,10 +653,26 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // GCC defines char16_t and char32_t in the C compiler in -std=gnu99 mode, 
 // as __CHAR16_TYPE__ and __CHAR32_TYPE__, and for the C++ compiler 
 // in -std=c++0x and -std=gnu++0x modes, as char16_t and char32_t too.
+//
+// The EA_WCHAR_UNIQUE symbol is defined to 1 if wchar_t, char16_t, and
+// char32_t are all distinct types. In some cases, if the compiler does
+// not support char16_t/char32_t, one of these two types is typically
+// a typedef of wchar_t. For compilers that support the C++11 unicode
+// character types often overloads must be provided to support existing
+// code that passes a wide char string to a function that takes a
+// unicode string.
 
 #if !defined(EA_CHAR16_NATIVE)
     #if defined(_MSC_VER) && (_MSC_VER >= 1600) && defined(_HAS_CHAR16_T_LANGUAGE_SUPPORT) && _HAS_CHAR16_T_LANGUAGE_SUPPORT // VS2010+
         #define EA_CHAR16_NATIVE 1
+    #elif defined(EA_COMPILER_CLANG) && defined(__cplusplus)
+        #if __has_feature(cxx_unicode_literals)
+            #define EA_CHAR16_NATIVE 1
+        #elif (EA_COMPILER_VERSION >= 300) && !(defined(CS_UNDEFINED_STRING) || defined(CS_UNDEFINED_STRING))
+            #define EA_CHAR16_NATIVE 1
+        #else
+            #define EA_CHAR16_NATIVE 0
+        #endif
     #elif defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 404) && (defined(__GXX_EXPERIMENTAL_CXX0X__) || defined(__STDC_VERSION__)) // g++ (C++ compiler) 4.4+ with -std=c++0x or gcc (C compiler) 4.4+ with -std=gnu99
         #define EA_CHAR16_NATIVE 1
     #else
@@ -625,9 +680,17 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #endif
 #endif
 
-#if !defined(EA_CHAR32_NATIVE)
+#if !defined(EA_CHAR32_NATIVE)                    // Microsoft currently ties char32_t language support to char16_t language support. So we use CHAR16_T here.
     #if defined(_MSC_VER) && (_MSC_VER >= 1600) && defined(_HAS_CHAR16_T_LANGUAGE_SUPPORT) && _HAS_CHAR16_T_LANGUAGE_SUPPORT // VS2010+
         #define EA_CHAR32_NATIVE 1
+    #elif defined(EA_COMPILER_CLANG) && defined(__cplusplus)
+        #if __has_feature(cxx_unicode_literals)
+            #define EA_CHAR32_NATIVE 1
+        #elif (EA_COMPILER_VERSION >= 300) && !(defined(CS_UNDEFINED_STRING) || defined(CS_UNDEFINED_STRING))
+            #define EA_CHAR32_NATIVE 1
+        #else
+            #define EA_CHAR32_NATIVE 0
+        #endif
     #elif defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 404) && (defined(__GXX_EXPERIMENTAL_CXX0X__) || defined(__STDC_VERSION__)) // g++ (C++ compiler) 4.4+ with -std=c++0x or gcc (C compiler) 4.4+ with -std=gnu99
         #define EA_CHAR32_NATIVE 1
     #else
@@ -636,12 +699,22 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+#if EA_CHAR16_NATIVE || EA_CHAR32_NATIVE
+    #define EA_WCHAR_UNIQUE 1
+#else
+    #define EA_WCHAR_UNIQUE 0
+#endif
+
+
 #ifndef CHAR8_T_DEFINED // If the user hasn't already defined these...
     #define CHAR8_T_DEFINED
-
-    #if EA_CHAR16_NATIVE
+    #if defined(EA_PLATFORM_APPLE)
+        #define char8_t char    // The Apple debugger is too stupid to realize char8_t is typedef'd to char, so we #define it.
+    #else
         typedef char char8_t;
-
+    #endif
+    
+    #if EA_CHAR16_NATIVE
         // In C++, char16_t and char32_t are already defined by the compiler.
         // In MS C, char16_t and char32_t are already defined by the compiler/standard library.
         // In GCC C, __CHAR16_TYPE__ and __CHAR32_TYPE__ are defined instead, and we must define char16_t and char32_t from these.
@@ -650,18 +723,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             typedef __CHAR32_TYPE__ char32_t;
         #endif
     #elif (EA_WCHAR_SIZE == 2)
-        typedef char      char8_t;
-        typedef wchar_t   char16_t;
-        typedef uint32_t  char32_t;
+        #if defined(_MSC_VER) && (_MSC_VER >= 1600) // if VS2010+
+            #if !defined(_CHAR16T)
+                #define _CHAR16T
+            #endif
+            #if !defined(_HAS_CHAR16_T_LANGUAGE_SUPPORT) || !_HAS_CHAR16_T_LANGUAGE_SUPPORT
+                typedef wchar_t  char16_t;
+                typedef uint32_t char32_t;
+            #endif
+        #else
+            typedef wchar_t  char16_t;
+            typedef uint32_t char32_t;
+        #endif
     #else
-        typedef char      char8_t;
-        typedef uint16_t  char16_t;
-        typedef wchar_t   char32_t;
+        typedef uint16_t char16_t;
+        typedef wchar_t  char32_t;
     #endif
 #endif
 
 
-// EA_CHAR16 / EA_CHAR32
+
+// EA_CHAR8 / EA_CHAR16 / EA_CHAR32 / EA_WCHAR 
 //
 // Supports usage of portable string constants.
 //
@@ -671,13 +753,29 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //     const char16_t  c   = EA_CHAR16('\x3001');
 //     const char32_t  c   = EA_CHAR32('\x3001');
 //
+#ifndef EA_CHAR8
+     #define EA_CHAR8(s) s
+#endif
+
+#ifndef EA_WCHAR
+     #define EA_WCHAR(s) L ## s
+#endif
+
 #ifndef EA_CHAR16
     #if EA_CHAR16_NATIVE && !defined(_MSC_VER) // Microsoft doesn't support char16_t string literals.
         #define EA_CHAR16(s) u ## s
     #elif (EA_WCHAR_SIZE == 2)
-        #define EA_CHAR16(s) L ## s
+        #if 0 // defined(_MSC_VER) && (_MSC_VER >= 1600) && defined(__cplusplus) // VS2010 requires some trickery, since it defines char16_t as unsigned short, but doesn't support u"" string literals.
+            __forceinline const char16_t* literal_cast(const wchar_t* p) { return (const char16_t*)p; }
+            __forceinline       char16_t* literal_cast(      wchar_t* p) { return       (char16_t*)p; }
+            __forceinline       char16_t  literal_cast(      wchar_t  c) { return       (char16_t) c; }
+
+            #define EA_CHAR16(s) literal_cast(L ## s)
+        #else
+            #define EA_CHAR16(s) L ## s
+        #endif
     #else
-      //#define EA_CHAR16(s) // Impossible to implement.
+        //#define EA_CHAR16(s) // Impossible to implement efficiently.
     #endif
 #endif
 
@@ -687,9 +785,28 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #elif (EA_WCHAR_SIZE == 2)
       //#define EA_CHAR32(s) // Impossible to implement.
     #else
-        #define EA_CHAR32(s) L ## s
+        #if defined(_MSC_VER) && (_MSC_VER >= 1600)     // Microsoft doesn't support U"" string literals.
+          //#define EA_CHAR32(s) literal_cast(L ## s)   // Impossible to implement
+        #else
+            #define EA_CHAR32(s) L ## s
+        #endif
     #endif
 #endif
+
+// EAText8 / EAText16
+//
+// Provided for backwards compatibility with older code.
+//
+#if defined(EABASE_ENABLE_EATEXT_MACROS)
+    #define EAText8(x)   x
+    #define EAChar8(x)   x
+
+    #define EAText16(x)  EA_CHAR16(x)
+    #define EAChar16(x)  EA_CHAR16(x)
+#endif
+
+
+
 
 
 // ------------------------------------------------------------------------
@@ -719,34 +836,31 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Example usage:
 //     static_assert(sizeof(int) == 4, "int must be 32 bits");
 //
-#if !defined(EABASE_STATIC_ASSERT_ENABLED)
-    #if defined(EA_DEBUG) || defined(_DEBUG)
-        #define EABASE_STATIC_ASSERT_ENABLED 1
-    #else
-        #define EABASE_STATIC_ASSERT_ENABLED 0
-    #endif
-#endif
-
-#ifndef EA_PREPROCESSOR_JOIN
-    #define EA_PREPROCESSOR_JOIN(a, b)  EA_PREPROCESSOR_JOIN1(a, b)
-    #define EA_PREPROCESSOR_JOIN1(a, b) EA_PREPROCESSOR_JOIN2(a, b)
-    #define EA_PREPROCESSOR_JOIN2(a, b) a##b
-#endif
-
-#if defined(_MSC_VER) && (_MSC_VER >= 1600)
+#if defined(_MSC_VER) && (_MSC_VER >= 1600) && defined(__cplusplus)
     // static_assert is defined by the compiler for both C and C++.
-#elif defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__)
+#elif defined(__clang__) && defined(__cplusplus) 
+    #if !(__has_feature(cxx_static_assert) || __has_extension(cxx_static_assert))
+        #define NEED_CUSTOM_STATIC_ASSERT
+    #endif
+#elif defined(__GNUC__) && (defined(__GXX_EXPERIMENTAL_CXX0X__) || (defined(__cplusplus) && (__cplusplus >= 201103L)))
+    // static_assert is defined by the compiler.
+#elif defined(__EDG__) && (defined(__cplusplus) && (__cplusplus >= 201103L))
     // static_assert is defined by the compiler.
 #else
-    #if EABASE_STATIC_ASSERT_ENABLED
-        #if defined(__COUNTER__) // If this VC++ extension is available...
-            #define static_assert(expression, description) enum { EA_PREPROCESSOR_JOIN(static_assert_, __COUNTER__) = 1 / ((!!(expression)) ? 1 : 0) }
-        #else
-            #define static_assert(expression, description) enum { EA_PREPROCESSOR_JOIN(static_assert_, __LINE__) = 1 / ((!!(expression)) ? 1 : 0) }
-        #endif
+    #define NEED_CUSTOM_STATIC_ASSERT
+#endif
+
+#ifdef NEED_CUSTOM_STATIC_ASSERT
+    #define EA_STATIC_ASSERT_TOKEN_PASTE(a,b)        a ## b
+    #define EA_STATIC_ASSERT_CONCATENATE_HELPER(a,b) EA_STATIC_ASSERT_TOKEN_PASTE(a,b)
+
+    #if defined(__COUNTER__) // If this VC++ extension is available, which allows multiple statements per line...
+        #define static_assert(expression, description) typedef char EA_STATIC_ASSERT_CONCATENATE_HELPER(compileTimeAssert,__COUNTER__) [((expression) != 0) ? 1 : -1]
     #else
-            #define static_assert(expression, description)
+        #define static_assert(expression, description) typedef char EA_STATIC_ASSERT_CONCATENATE_HELPER(compileTimeAssert,__LINE__) [((expression) != 0) ? 1 : -1]
     #endif
+
+    #undef NEED_CUSTOM_STATIC_ASSERT
 #endif
 
 

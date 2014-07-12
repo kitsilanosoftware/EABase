@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2009 Electronic Arts, Inc.  All rights reserved.
+Copyright (C) 2002-2013 Electronic Arts, Inc.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -26,25 +26,20 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*-----------------------------------------------------------------------------
- * earesult.h
- *
- * Copyright (c) 2002 - 2005 Electronic Arts Inc. All rights reserved.
- * Maintained by Paul Pedriana, Maxis
- *---------------------------------------------------------------------------*/
-
 
 #ifndef INCLUDED_earesult_H
 #define INCLUDED_earesult_H
 
 
-#ifndef INCLUDED_eabase_H
-    #include "EABase/eabase.h"
+#include <EABase/eabase.h>
+
+#if defined(EA_PRAGMA_ONCE_SUPPORTED)
+    #pragma once /* Some compilers (e.g. VC++) benefit significantly from using this. We've measured 3-4% build speed improvements in apps as a result. */
 #endif
 
 
 
-/// \brief This result type is width-compatible with most systems
+/* This result type is width-compatible with most systems. */
 typedef int32_t ea_result_type;
 
 
@@ -60,12 +55,12 @@ namespace EA
 }
 
 
-/// \brief Macro to simplify testing for success
+/* Macro to simplify testing for success. */
 #ifndef EA_SUCCEEDED
     #define EA_SUCCEEDED(result) ((result) >= 0)
 #endif
 
-/// \brief Macro to simplfify testing for general failure
+/* Macro to simplfify testing for general failure. */
 #ifndef EA_FAILED
     #define EA_FAILED(result) ((result) < 0)
 #endif
