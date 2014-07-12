@@ -1314,8 +1314,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #ifndef EA_PASCAL
         #if defined(EA_COMPILER_MSVC)
             #define EA_PASCAL __stdcall
-        #elif defined(EA_COMPILER_GNUC) && defined(EA_PROCESSOR_X86)
-            #define EA_PASCAL __attribute__((stdcall))
         #else
             // Some compilers simply don't support pascal calling convention.
             // As a result, there isn't an issue here, since the specification of 
@@ -1328,8 +1326,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #ifndef EA_PASCAL_FUNC
         #if defined(EA_COMPILER_MSVC)
             #define EA_PASCAL_FUNC(funcname_and_paramlist)    __stdcall funcname_and_paramlist
-        #elif defined(EA_COMPILER_GNUC) && defined(EA_PROCESSOR_X86)
-            #define EA_PASCAL_FUNC(funcname_and_paramlist)    __attribute__((stdcall)) funcname_and_paramlist
         #else
             #define EA_PASCAL_FUNC(funcname_and_paramlist)    funcname_and_paramlist
         #endif
@@ -1367,10 +1363,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             #define EA_SSE 3
         #elif EA_SSE2
             #define EA_SSE 2
-        #elif defined(EA_PROCESSOR_X86) && defined(_MSC_FULL_VER) && !defined(__NOSSE__) && defined(_M_IX86_FP)
-            #define EA_SSE _M_IX86_FP 
-        #elif defined(EA_PROCESSOR_X86) && defined(EA_COMPILER_INTEL) && !defined(__NOSSE__)
-            #define EA_SSE 1
         #elif defined(EA_PROCESSOR_X86_64)
             // All x64 processors support SSE2 or higher
             #define EA_SSE 2

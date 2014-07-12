@@ -177,7 +177,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #define EA_PLATFORM_POSIX 1     // BSD's posix complaince is not identical to Linux's
     #define EA_PLATFORM_NAME "BSD Unix"
     #if defined(__i386__) || defined(__intel__)
-        #define EA_PROCESSOR_X86 1
+        #define CS_UNDEFINED_STRING 1
         #define EA_SYSTEM_LITTLE_ENDIAN 1
         #define EA_PLATFORM_DESCRIPTION "BSD on x86"
     #elif defined(__x86_64__)
@@ -206,9 +206,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #endif
     #define EA_PLATFORM_DESKTOP 1
 
-#elif (defined(EA_PLATFORM_WINDOWS) || (defined(_WIN32) || defined(__WIN32__) || defined(_WIN64) || (defined(CS_UNDEFINED_STRING) && defined(_X86_)))) && !defined(CS_UNDEFINED_STRING)
-    #undef  EA_PLATFORM_WINDOWS
-    #define EA_PLATFORM_WINDOWS 1
+#elif (defined(CS_UNDEFINED_STRING) || (defined(_WIN32) || defined(__WIN32__) || defined(_WIN64) || (defined(CS_UNDEFINED_STRING) && defined(_X86_)))) && !defined(CS_UNDEFINED_STRING)
+    #undef  CS_UNDEFINED_STRING
+    #define CS_UNDEFINED_STRING 1
     #define EA_PLATFORM_NAME "Windows"
     #ifdef _WIN64 // VC++ defines both _WIN32 and _WIN64 when compiling for Win64.
         #define EA_PLATFORM_WIN64 1
@@ -220,7 +220,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #define EA_SYSTEM_LITTLE_ENDIAN 1
         #define EA_PLATFORM_DESCRIPTION "Windows on X86-64"
     #elif defined(_M_IX86) || defined(_X86_)
-        #define EA_PROCESSOR_X86 1
+        #define CS_UNDEFINED_STRING 1
         #define EA_SYSTEM_LITTLE_ENDIAN 1
         #define EA_PLATFORM_DESCRIPTION "Windows on X86"
     #elif defined(_M_IA64) || defined(_IA64_)
