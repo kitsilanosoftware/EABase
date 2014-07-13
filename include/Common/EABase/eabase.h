@@ -526,7 +526,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 #ifndef BOOL8_T_DEFINED // If the user hasn't already defined this...
     #define BOOL8_T_DEFINED
-    #if defined(EA_COMPILER_MSVC) || defined(CS_UNDEFINED_STRING) || (defined(EA_COMPILER_INTEL) && defined(CS_UNDEFINED_STRING)) || defined(EA_COMPILER_BORLAND)
+    #if defined(EA_COMPILER_MSVC) || defined(CS_UNDEFINED_STRING) || (defined(EA_COMPILER_INTEL) && defined(EA_PLATFORM_WINDOWS)) || defined(EA_COMPILER_BORLAND)
         #if defined(__cplusplus)
             typedef bool bool8_t;
         #else
